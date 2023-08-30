@@ -1,13 +1,11 @@
 package com.unblu.ucascade.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Map;
 
+import org.gitlab4j.api.models.Branch;
 import org.junit.jupiter.api.Test;
 
 import com.unblu.ucascade.util.GitlabMockUtil.GitlabAction;
@@ -30,10 +28,60 @@ class GitlabMockUtilTest {
 	}
 
 	@Test
-	void testGetNextTargetBranch() throws Exception {
-		String branchModelContent = Files.readString(Path.of("src/test/resources/ucascade.json"));
-		String actual = ConfigurationUtils.getNextTargetBranch(branchModelContent, GitlabMockUtil.MR_EVENT_TARGET_BRANCH);
-		assertEquals(GitlabMockUtil.DEFAULT_TARGET_BRANCH, actual);
+	void testGetNextTargetBranch1() {
+		ArrayList<Branch> branches = new ArrayList<>();
+		branches.add(createBranchWithName("release/release-1.0"));
+		branches.add(createBranchWithName("release/release-2.0"));
+		branches.add(createBranchWithName("release/release-1.1"));
+		branches.add(createBranchWithName("release/release-1.2"));
+		branches.add(createBranchWithName("release/release-3.2"));
+		branches.add(createBranchWithName("release/release-3.0"));
+		String nextBranch = ConfigurationUtils.getNextTargetBranch(branches, "release/release-1.2");
+		assertEquals("release/release-2.0", nextBranch);
 	}
 
+	@Test
+	void testGetNextTargetBranch2() {
+		ArrayList<Branch> branches = new ArrayList<>();
+		branches.add(createBranchWithName("release/release-1.0"));
+		branches.add(createBranchWithName("release/release-2.0"));
+		branches.add(createBranchWithName("release/release-1.1"));
+		branches.add(createBranchWithName("release/release-1.2"));
+		branches.add(createBranchWithName("release/release-3.2"));
+		branches.add(createBranchWithName("release/release-3.0"));
+		String nextBranch = ConfigurationUtils.getNextTargetBranch(branches, "release/release-1.0");
+		assertEquals("release/release-1.1", nextBranch);
+	}
+
+	@Test
+	void testGetNextTargetBranch3() {
+		ArrayList<Branch> branches = new ArrayList<>();
+		branches.add(createBranchWithName("incorrectName"));
+		branches.add(createBranchWithName("release/release-2.0"));
+		branches.add(createBranchWithName("release/release-1.1"));
+		branches.add(createBranchWithName("release/release-1.2"));
+		branches.add(createBranchWithName("release/release-3.2"));
+		branches.add(createBranchWithName("release/release-3.0"));
+		String nextBranch = ConfigurationUtils.getNextTargetBranch(branches, "release/release-3.2");
+		assertEquals("master", nextBranch);
+	}
+
+	@Test
+	void testGetNextTargetBranch4() {
+		ArrayList<Branch> branches = new ArrayList<>();
+		branches.add(createBranchWithName("incorrectName"));
+		branches.add(createBranchWithName("release/release-2.0"));
+		branches.add(createBranchWithName("release/release-1.1"));
+		branches.add(createBranchWithName("release/release-1.2"));
+		branches.add(createBranchWithName("release/release-3.2"));
+		branches.add(createBranchWithName("release/release-3.0"));
+		String nextBranch = ConfigurationUtils.getNextTargetBranch(branches, "master");
+		assertNull(nextBranch);
+	}
+
+	private Branch createBranchWithName(final String name) {
+		final Branch branch = new Branch();
+		branch.setName(name);
+		return branch;
+	}
 }

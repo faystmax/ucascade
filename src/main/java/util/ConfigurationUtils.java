@@ -1,28 +1,34 @@
 package util;
 
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Matcher;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
-import controller.model.Config;
-import controller.model.ConfigBranches;
+import org.gitlab4j.api.models.Branch;
 
 public class ConfigurationUtils {
+	public static final String LAST_BRANCH = "master";
+	public static final Pattern BRANCH_PATTER = Pattern.compile("release/release-(\\d+\\.\\d+)");
 
-	public static String getNextTargetBranch(String branchModel, String sourceBranchName) {
-		Config config = JsonUtils.getConfigFromString(branchModel);
-		List<ConfigBranches> branches = config.getBranches();
-		if (branches != null) {
-			for (final ConfigBranches branch : branches) {
-				String sourceBranchPatternString = branch.getSourceBranchPattern();
-				Pattern sourceBranchPattern = Pattern.compile(sourceBranchPatternString);
-				Matcher matcher = sourceBranchPattern.matcher(sourceBranchName);
-				if (matcher.find()) {
-					return branch.getTargetBranch();
+	public static String getNextTargetBranch(List<Branch> branches, String sourceBranchName) {
+		if (BRANCH_PATTER.matcher(sourceBranchName).find()) {
+			final List<Branch> sortedBranches = branches.stream()
+					.filter(Objects::nonNull)
+					.map(util.ComparableBranch::new)
+					.filter(branch -> branch.getVersion() != null)
+					.sorted(Comparator.comparing(util.ComparableBranch::getVersion))
+					.map(util.ComparableBranch::getBranch)
+					.toList();
+
+			for (Iterator<Branch> iterator = sortedBranches.iterator(); iterator.hasNext();) {
+				Branch currentBranch = iterator.next();
+				if (Objects.equals(currentBranch.getName(), sourceBranchName) && iterator.hasNext()) {
+					return iterator.next().getName();
 				}
 			}
 		}
-
-		return null;
+		return Objects.equals(sourceBranchName, LAST_BRANCH) ? null : LAST_BRANCH;
 	}
 }

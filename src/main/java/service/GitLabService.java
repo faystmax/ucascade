@@ -1,7 +1,6 @@
 package service;
 
 import java.util.ArrayDeque;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
@@ -62,7 +61,6 @@ public class GitLabService {
 	@ConfigProperty(name = "build.timestamp", defaultValue = "n/a")
 	String buildTimestamp;
 
-	private static final String UCASCADE_CONFIGURATION_FILE = "ucascade.json";
 	private static final String UCASCADE_TAG = "[ucascade]";
 	private static final String UCASCADE_BRANCH_PATTERN_PREFIX = "^mr(\\d+)_";
 	private static final String UCASCADE_BRANCH_PATTERN = UCASCADE_BRANCH_PATTERN_PREFIX + ".+";
@@ -199,8 +197,9 @@ public class GitLabService {
 	}
 
 	private void createAutoMr(CascadeResult result, String gitlabEventUUID, Long projectId, String prevMrSourceBranch, String sourceBranch, Long mrNumber, String mergeSha) {
-		String branchModel = getBranchModelConfigurationFile(gitlabEventUUID, projectId, mergeSha);
-		String nextMainBranch = ConfigurationUtils.getNextTargetBranch(branchModel, sourceBranch);
+
+		final List<Branch> branches = getBranches(gitlabEventUUID, projectId);
+		String nextMainBranch = ConfigurationUtils.getNextTargetBranch(branches, sourceBranch);
 
 		if (nextMainBranch != null) {
 			Branch branch = getBranch(gitlabEventUUID, projectId, nextMainBranch);
@@ -483,6 +482,14 @@ public class GitLabService {
 		}
 	}
 
+	private List<Branch> getBranches(String gitlabEventUUID, Long project) {
+		try {
+			return gitlab.getRepositoryApi().getBranches(project, "release/release-");
+		} catch (final GitLabApiException ex) {
+			throw new IllegalStateException(String.format("GitlabEvent: '%s' | Cannot get all branches!'", gitlabEventUUID), ex);
+		}
+	}
+
 	private boolean deleteBranch(Long project, String branchName) {
 		try {
 			gitlab.getRepositoryApi().deleteBranch(project, branchName);
@@ -499,15 +506,6 @@ public class GitLabService {
 			return mrApi.getMergeRequestsStream(project, MergeRequestState.OPENED);
 		} catch (GitLabApiException e) {
 			throw new IllegalStateException(String.format("GitlabEvent: '%s' | Cannot retrieve open merge requests for project '%d' in '%s'", gitlabEventUUID, project, gitLabHost), e);
-		}
-	}
-
-	private String getBranchModelConfigurationFile(String gitlabEventUUID, Long project, String ref) {
-		try {
-			String encodedContent = gitlab.getRepositoryFileApi().getFile(project, UCASCADE_CONFIGURATION_FILE, ref).getContent();
-			return new String(Base64.getDecoder().decode(encodedContent));
-		} catch (GitLabApiException e) {
-			throw new IllegalStateException(String.format("GitlabEvent: '%s' | Configuration file '%s' not found in remote repository at '%s'", gitlabEventUUID, UCASCADE_CONFIGURATION_FILE, ref), e);
 		}
 	}
 
